@@ -1,0 +1,76 @@
+# =============================================================================
+# Medical Image Segmentation — Central Configuration
+# Every script reads from this file so experiments are reproducible.
+# Change values here, not inside the code.
+# =============================================================================
+
+project:
+  name: "medical-image-segmentation"
+  seed: 42
+  device: "cuda"          # "cuda" or "cpu" — auto-falls back to cpu if no GPU
+
+# -----------------------------------------------------------------------------
+# Data
+# -----------------------------------------------------------------------------
+data:
+  # Root of the raw ISIC-2018 download (images + masks).
+  # download_data.py populates these folders.
+  images_dir: "data/raw/ISIC2018/images"
+  masks_dir:  "data/raw/ISIC2018/masks"
+  splits_dir: "data/splits"        # train.csv / val.csv / test.csv live here
+
+  image_size: 256                  # all images resized to image_size x image_size
+  val_fraction: 0.15
+  test_fraction: 0.15
+  mask_suffix: "_segmentation"     # ISIC masks are named <id>_segmentation.png
+
+# -----------------------------------------------------------------------------
+# Model
+# -----------------------------------------------------------------------------
+model:
+  # Architecture key understood by src/models.py:build_model
+  #   "unet"        -> vanilla U-Net (baseline)
+  #   "unetpp"      -> U-Net++ (nested skip pathways)
+  #   "attention_unet" -> Attention U-Net (custom implementation)
+  arch: "unet"
+  encoder: "resnet34"              # any timm/smp encoder, e.g. efficientnet-b4
+  encoder_weights: "imagenet"     # null for random init
+  in_channels: 3
+  num_classes: 1                   # binary lesion mask
+
+# -----------------------------------------------------------------------------
+# Training
+# -----------------------------------------------------------------------------
+train:
+  epochs: 60
+  batch_size: 16
+  num_workers: 4
+  lr: 0.0003
+  weight_decay: 0.0001
+  optimizer: "adamw"
+  scheduler: "cosine_warm_restarts"   # T_0=10
+  mixed_precision: true
+  early_stopping_patience: 15
+  # Loss: combined BCE + Dice. For tiny structures switch to "tversky".
+  loss: "bce_dice"                 # "bce_dice" | "dice" | "tversky"
+  bce_weight: 0.5
+  dice_weight: 0.5
+  tversky_alpha: 0.7               # penalise false negatives (missed lesion)
+  tversky_beta: 0.3
+  monitor_metric: "dice"           # checkpoint the best val dice
+
+# -----------------------------------------------------------------------------
+# Logging / output
+# -----------------------------------------------------------------------------
+logging:
+  use_wandb: false                 # set true after `wandb login`
+  wandb_project: "medical-seg"
+  checkpoints_dir: "checkpoints"
+  outputs_dir: "outputs"
+
+# -----------------------------------------------------------------------------
+# Inference / app
+# -----------------------------------------------------------------------------
+inference:
+  checkpoint: "checkpoints/best_unet.pt"
+  threshold: 0.5                   # probability above which a pixel is "lesion"
