@@ -103,7 +103,7 @@ def main():
     scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1)
 
     use_amp = cfg["train"]["mixed_precision"] and device.type == "cuda"
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     threshold = cfg["inference"]["threshold"]
 
     # Optional Weights & Biases

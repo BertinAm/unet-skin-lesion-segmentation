@@ -26,7 +26,12 @@ class SegmentationPredictor:
         self.cfg = load_config(config)
         self.device = device or get_device(self.cfg["project"]["device"])
         ckpt = torch.load(resolve(checkpoint), map_location=self.device)
-        self.ckpt_cfg = ckpt.get("config", self.cfg)
+        # Copy the checkpoint's config and drop pretrained-encoder weights: at
+        # inference we immediately overwrite all weights with the trained
+        # state_dict, so re-downloading ImageNet weights would be wasted work.
+        self.ckpt_cfg = dict(ckpt.get("config", self.cfg))
+        self.ckpt_cfg["model"] = dict(self.ckpt_cfg["model"])
+        self.ckpt_cfg["model"]["encoder_weights"] = None
         self.model = build_model(self.ckpt_cfg).to(self.device)
         self.model.load_state_dict(ckpt["model_state"])
         self.model.eval()
